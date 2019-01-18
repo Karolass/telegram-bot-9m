@@ -2,8 +2,8 @@
   "name": "telegram-bot-9m",
   "version": "0.1.0",
   "scripts": {
-    "start": "cross-env NODE_ENV=production node ./bin/www",
-    "dev": "cross-env NODE_ENV=development nodemon ./bin/www"
+    "start": "node ./bin/www",
+    "dev": "nodemon ./bin/www"
   },
   "dependencies": {
     "bluebird": "^3.5.0",
