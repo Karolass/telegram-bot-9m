@@ -3,9 +3,9 @@ const rp = require('request-promise')
 const url = `https://api.telegram.org/bot${process.env.TG_TOKEN}`
 
 module.exports = {
-  sendAnimation: async function(chatId) {
+  sendAnimation: async function(chatId, animationId) {
     try {
-      const uri = `${url}/sendAnimation?chat_id=${chatId}&animation=CgADBQADJwADzYlYVgXgfKW3QDpfAg`
+      const uri = `${url}/sendAnimation?chat_id=${chatId}&animation=${animationId}`
       await rp({
         uri
       })
