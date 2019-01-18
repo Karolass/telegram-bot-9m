@@ -17,6 +17,7 @@ const ifText = async (chatId, text) => {
 module.exports = {
   webhook: async(req, res) => {
     try {
+      console.log(req.body)
       const chatId = req.body.message.chat.id
 
       if (req.body.message.animation) {
