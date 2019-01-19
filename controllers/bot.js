@@ -9,6 +9,10 @@ const ifAnimation = async (chatId, animation) => {
 const ifText = async (chatId, text) => {
   if (/哇靠/i.test(text)) {
     await request.sendSticker(chatId, 'CAADBQAD8wEAAhZUFRVhJIk8t8-mWgI')
+  } else if (/傻眼/i.test(text)) {
+    await request.sendSticker(chatId, 'CAADBQADCAIAAhZUFRUNgHEHih2ysQI')
+  } else if (/喬瑟夫/i.test(text)) {
+    await request.sendAnimation(chatId, 'CgADBQADRwAD6gQQVfERILdPn8_zAg')
   }
 }
 
