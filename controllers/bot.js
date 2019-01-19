@@ -20,6 +20,8 @@ module.exports = {
   webhook: async (req, res) => {
     try {
       console.log(JSON.stringify(req.body))
+      if (req.body.edited_message) return res.send()
+
       const chatId = req.body.message.chat.id
 
       if (req.body.message.animation) {
