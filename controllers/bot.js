@@ -30,6 +30,15 @@ const ifText = async (chatId, text) => {
   }
 }
 
+const ifCommand = async (chatId, text) => {
+  if (/\/random/i.test(text)) {
+    const stickers = await request.getStickerSet('cherryGang')
+    if (stickers.length == 0) return
+    const index = Math.floor(Math.random() * stickers.length)
+    await request.sendSticker(chatId, stickers[index].file_id)
+  }
+}
+
 module.exports = {
   webhook: async (req, res) => {
     try {
@@ -40,8 +49,10 @@ module.exports = {
 
       if (req.body.message.animation) {
         await ifAnimation(chatId, req.body.message.animation)
-      } else if (req.body.message.text) {
+      } else if (req.body.message.text && !req.body.message.entities) {
         await ifText(chatId, req.body.message.text.trim())
+      } else if (req.body.message.text && req.body.message.entities) {
+        await ifCommand(chatId, req.body.message.text.trim())
       }
 
       return res.send()
