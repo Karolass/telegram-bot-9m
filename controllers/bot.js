@@ -3,6 +3,8 @@ const request = require('../helper/request')
 const ifAnimation = async (chatId, animation) => {
   if (animation.file_id == 'CgADBQADRgADAlHRVLbNrMgH9W3BAg') {
     await request.sendAnimation(chatId, 'CgADBQADJwADzYlYVgXgfKW3QDpfAg')
+  } else if (animation.file_id == 'CgADBQADJwADzYlYVgXgfKW3QDpfAg') {
+    await request.sendAnimation(chatId, 'CgADBQADRgADAlHRVLbNrMgH9W3BAg')
   }
 }
 
@@ -21,7 +23,7 @@ const ifText = async (chatId, text) => {
     await request.sendSticker(chatId, 'CAADBQAD-wEAAhZUFRVE_IjYqIcvQAI')
   } else if (/興奮/i.test(text)) {
     await request.sendSticker(chatId, 'CAADBQADCgIAAhZUFRV_Hv6tJvdJUQI')
-  } else if (/幫QQ/i.test(text)) {
+  } else if (/QQ/i.test(text)) {
     await request.sendSticker(chatId, 'CAADBQADBwIAAhZUFRVDo07nzoPQbgI')
   } else if (/甲甲/i.test(text)) {
     await request.sendSticker(chatId, 'CAADBQADBAIAAhZUFRXTMnOJyUjC3wI')
