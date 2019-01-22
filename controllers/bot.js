@@ -1,60 +1,131 @@
 const request = require('../helper/request')
+const Conversation = require('../models')
 
-const ifAnimation = async (chatId, animation) => {
-  if (animation.file_id == 'CgADBQADRgADAlHRVLbNrMgH9W3BAg') {
-    await request.sendAnimation(chatId, 'CgADBQADJwADzYlYVgXgfKW3QDpfAg')
-  } else if (animation.file_id == 'CgADBQADJwADzYlYVgXgfKW3QDpfAg') {
-    await request.sendAnimation(chatId, 'CgADBQADRgADAlHRVLbNrMgH9W3BAg')
+const ifAnimation = async (req) => {
+  const chatId = req.body.message.chat.id
+  const animationId = req.body.message.animation.file_id
+
+  const data = await Conversation.findOne({ where: { chatId, qType: 2, qMsg: animationId }})
+
+  if (data) {
+    await sendByAType(chatId, data)
   }
 }
 
-const ifText = async (chatId, text) => {
-  if (/哇靠/i.test(text)) {
-    await request.sendSticker(chatId, 'CAADBQAD8wEAAhZUFRVhJIk8t8-mWgI')
-  } else if (/傻眼/i.test(text)) {
-    await request.sendSticker(chatId, 'CAADBQADCAIAAhZUFRUNgHEHih2ysQI')
-  } else if (/喬瑟夫/i.test(text)) {
-    await request.sendAnimation(chatId, 'CgADBQADRwAD6gQQVfERILdPn8_zAg')
-  } else if (/不是吧/i.test(text)) {
-    await request.sendSticker(chatId, 'CAADBQAD9AEAAhZUFRUgCTdacKLTkQI')
-  } else if (/求包養/i.test(text)) {
-    await request.sendSticker(chatId, 'CAADBQAD_AEAAhZUFRV0woJ6SekjNQI')
-  } else if (/有病/i.test(text)) {
-    await request.sendSticker(chatId, 'CAADBQAD-wEAAhZUFRVE_IjYqIcvQAI')
-  } else if (/興奮/i.test(text)) {
-    await request.sendSticker(chatId, 'CAADBQADCgIAAhZUFRV_Hv6tJvdJUQI')
-  } else if (/QQ/i.test(text)) {
-    await request.sendSticker(chatId, 'CAADBQADBwIAAhZUFRVDo07nzoPQbgI')
-  } else if (/甲甲/i.test(text)) {
-    await request.sendSticker(chatId, 'CAADBQADBAIAAhZUFRXTMnOJyUjC3wI')
-  } else if (/屌/i.test(text)) {
-    await request.sendSticker(chatId, 'CAADBQADDQIAAhZUFRUN4_JgD3TfewI')
+const ifSticker = async (req) => {
+  const chatId = req.body.message.chat.id
+  const stickerId = req.body.message.sticker.file_id
+
+  const data = await Conversation.findOne({ where: { chatId, qType: 1, qMsg: stickerId }})
+
+  if (data) {
+    await sendByAType(chatId, data)
   }
 }
 
-const ifCommand = async (chatId, text) => {
+const ifText = async (req) => {
+  const chatId = req.body.message.chat.id
+  const text = req.body.message.text
+
+  const data = await Conversation.findAll({ where: { chatId, qType: 0 }})
+
+  for (const d of data) {
+    const re = new RegExp(d.qMsg, 'i')
+    if (re.test(text)) {
+      await sendByAType(chatId, d)
+    }
+  }
+}
+
+const ifCommand = async (req) => {
+  const chatId = req.body.message.chat.id
+  const text = req.body.message.text
+
   if (/\/random/i.test(text)) {
     const stickers = await request.getStickerSet('cherryGang')
     if (stickers.length == 0) return
     const index = Math.floor(Math.random() * stickers.length)
     await request.sendSticker(chatId, stickers[index].file_id)
+  } else if (/\/conversation/i.test(text)) {
+    await request.sendMessage(chatId,
+      `您好 *${req.body.message.from.first_name} ${req.body.message.from.last_name}*,
+請輸入對話，如: 文字、貼圖或GIF
+    
+或輸入 *取消* 來結束此對話`)
+    req.session.state = { type: 0, data: []}
+  }
+}
+
+const ifSessionState = async (req) => {
+  const chatId = req.body.message.chat.id
+  const text = req.body.message.text
+  const sticker = req.body.message.sticker
+  const animation = req.body.message.animation
+
+  if (text !== undefined && /[取消|cancel|exit]/i.test(text)) {
+    await request.sendMessage(chatId, `您好 *${req.body.message.from.first_name} ${req.body.message.from.last_name}*, 您已取消此次新增對話`)
+
+    delete req.session.state
+    return
+  }
+
+  let resText
+  if (text) {
+    resText = '文字'
+    req.session.state.data.push({ type: 0, msg: text })
+  } else if (sticker) {
+    resText = '貼圖'
+    req.session.state.data.push({ type: 1, msg: sticker.file_id })
+  } else if (animation) {
+    resText = 'GIF'
+    req.session.state.data.push({ type: 2, msg: animation.file_id })
+  }
+
+  if (req.session.state.data.length == 1) {
+    await request.sendMessage(chatId, `您好 *${req.body.message.from.first_name} ${req.body.message.from.last_name}*, 已收到您的${resText}訊息
+請輸入您希望我回應甚麼，如: 文字、貼圖或GIF
+
+或輸入 *取消* 來結束此對話`)
+  } else if (req.session.state.data.length == 2) {
+    await request.sendMessage(chatId, `您好 *${req.body.message.from.first_name} ${req.body.message.from.last_name}*, 對話新增完成`)
+
+    await Conversation.create({
+      chatId,
+      qType: req.session.state.data[0].type, qMsg: req.session.state.data[0].msg,
+      aType: req.session.state.data[1].type, aMsg: req.session.state.data[1].msg,
+    })
+
+    delete req.session.state
+  }
+}
+
+const sendByAType = async (chatId, data) => {
+  switch (data.aType) {
+    case 0:
+      await request.sendMessage(chatId, data.aMsg)
+      break
+    case 1:
+      await request.sendSticker(chatId, data.aMsg)
+      break
+    case 2:
+      await request.sendAnimation(chatId, data.aMsg)
+      break
   }
 }
 
 module.exports = {
   webhook: async (req, res) => {
     try {
-      console.log(JSON.stringify(req.body))
-      if (req.body.edited_message) return res.send()
-
-      const chatId = req.body.message.chat.id
-
-      if (req.body.message.animation) {
-        await ifAnimation(chatId, req.body.message.animation)
-      } else if (req.body.message.text && !req.body.message.entities) {
-        await ifText(chatId, req.body.message.text.trim())
-      } else if (req.body.message.text && req.body.message.entities) {
-        await ifCommand(chatId, req.body.message.text.trim())
+      if (req.body.message.text && req.body.message.entities) {
+        await ifCommand(req)
+      } else if (req.session.state) {
+        await ifSessionState(req)
+      } else if (req.body.message.text) {
+        await ifText(req)
+      } else if (req.body.message.sticker) {
+        await ifSticker(req)
+      } else if (req.body.message.animation) {
+        await ifAnimation(req)
       }
 
       return res.send()

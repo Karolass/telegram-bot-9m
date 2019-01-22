@@ -3,6 +3,18 @@ const rp = require('request-promise')
 const url = `https://api.telegram.org/bot${process.env.TG_TOKEN}`
 
 module.exports = {
+  sendMessage: async function(chatId, text, parse_mode = 'Markdown') {
+    try {
+      const uri = `${url}/sendMessage`
+      const body = { chat_id: chatId, text, parse_mode }
+      await rp({ method: 'POST', uri, body, json: true })
+
+      return true
+    } catch (error) {
+      console.error(error)
+      return false
+    }
+  },
   sendAnimation: async function(chatId, animationId) {
     try {
       const uri = `${url}/sendAnimation?chat_id=${chatId}&animation=${animationId}`
@@ -10,7 +22,7 @@ module.exports = {
 
       return true
     } catch (error) {
-      console.error(err.error)
+      console.error(error)
       return false
     }
   },
@@ -21,7 +33,7 @@ module.exports = {
 
       return true
     } catch (error) {
-      console.error(err.error)
+      console.error(error)
       return false
     }
   },
@@ -36,7 +48,7 @@ module.exports = {
 
       return []
     } catch (error) {
-      console.error(err.error)
+      console.error(error)
       return []
     }
   },

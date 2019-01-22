@@ -2,10 +2,25 @@ const express = require('express')
 
 const bot = require('../controllers/bot')
 
-let route = {
+const route = {
   '/': [
     ['post', '/', bot.webhook],
   ],
+}
+
+// Memory Session
+const MemorySession = {}
+function sessionMiddleWare(req, res, next) {
+  console.log(JSON.stringify(req.body))
+  if (req.body.edited_message) return res.send()
+
+  const chatId = req.body.message.chat.id
+  const userId = req.body.message.from.id
+  if (!MemorySession[chatId]) MemorySession[chatId] = {}
+  if (!MemorySession[chatId][userId]) MemorySession[chatId][userId] = { user: req.body.message.from }
+
+  req.session = MemorySession[chatId][userId]
+  next()
 }
 
 function mainRoute(app, route, prefix) {
@@ -42,6 +57,8 @@ function routeProcess(array, prefix) {
 }
 
 module.exports = function(app) {
+
+  app.all('*', sessionMiddleWare)
 
   mainRoute(app, route)
 
