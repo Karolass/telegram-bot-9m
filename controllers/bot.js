@@ -49,10 +49,27 @@ const ifCommand = async (req) => {
   } else if (/\/conversation/i.test(text)) {
     await request.sendMessage(chatId,
       `您好 *${req.body.message.from.first_name} ${req.body.message.from.last_name}*,
-請輸入對話，如: 文字、貼圖或GIF
+請輸入對話訊息，如: 文字、貼圖或GIF
     
 或輸入 *取消* 來結束此對話`)
     req.session.state = { type: 0, data: []}
+  } else if (/\/removeall/i.test(text)) {
+    await request.sendMessage(chatId,
+      `您好 *${req.body.message.from.first_name} ${req.body.message.from.last_name}*, 確定要全部刪除嗎?`,
+      JSON.stringify({
+        inline_keyboard: [
+          [{ text: '確認', callback_data: 'yes' }],
+          [{ text: '取消', callback_data: 'no' }],
+        ],
+      }))
+    req.session.state = { type: 2, data: []}
+  } else if (/\/remove/i.test(text)) {
+    await request.sendMessage(chatId,
+      `您好 *${req.body.message.from.first_name} ${req.body.message.from.last_name}*,
+請輸入要刪除的對話訊息，如: 文字、貼圖或GIF
+    
+或輸入 *取消* 來結束此對話`)
+    req.session.state = { type: 1, data: []}
   }
 }
 
@@ -63,7 +80,7 @@ const ifSessionState = async (req) => {
   const animation = req.body.message.animation
 
   if (text !== undefined && /[取消|cancel|exit]/i.test(text)) {
-    await request.sendMessage(chatId, `您好 *${req.body.message.from.first_name} ${req.body.message.from.last_name}*, 您已取消此次新增對話`)
+    await request.sendMessage(chatId, `您好 *${req.body.message.from.first_name} ${req.body.message.from.last_name}*, 您已取消此次對話`)
 
     delete req.session.state
     return
@@ -81,19 +98,60 @@ const ifSessionState = async (req) => {
     req.session.state.data.push({ type: 2, msg: animation.file_id })
   }
 
-  if (req.session.state.data.length == 1) {
+  if (req.session.state.type == 0 && req.session.state.data.length == 1) {
     await request.sendMessage(chatId, `您好 *${req.body.message.from.first_name} ${req.body.message.from.last_name}*, 已收到您的${resText}訊息
 請輸入您希望我回應甚麼，如: 文字、貼圖或GIF
 
 或輸入 *取消* 來結束此對話`)
-  } else if (req.session.state.data.length == 2) {
+  } else if (req.session.state.type == 0 && req.session.state.data.length == 2) {
     await request.sendMessage(chatId, `您好 *${req.body.message.from.first_name} ${req.body.message.from.last_name}*, 對話新增完成`)
 
-    await Conversation.create({
+    const msg = await Conversation.findOne({ where: {
       chatId,
-      qType: req.session.state.data[0].type, qMsg: req.session.state.data[0].msg,
-      aType: req.session.state.data[1].type, aMsg: req.session.state.data[1].msg,
-    })
+      qType: req.session.state.data[0].type, qMsg: req.session.state.data[0].msg }})
+
+    if (msg) {
+      await Conversation.update({
+        aType: req.session.state.data[1].type, aMsg: req.session.state.data[1].msg,
+      }, { where: {
+        chatId,
+        qType: req.session.state.data[0].type, qMsg: req.session.state.data[0].msg,
+      }})
+    } else {
+      await Conversation.create({
+        chatId,
+        qType: req.session.state.data[0].type, qMsg: req.session.state.data[0].msg,
+        aType: req.session.state.data[1].type, aMsg: req.session.state.data[1].msg,
+      })
+    }
+
+    delete req.session.state
+  } else if (req.session.state.type == 1 && req.session.state.data.length == 1) {
+    await Conversation.destroy({ where: {
+      chatId, qType: req.session.state.data[0].type, qMsg: req.session.state.data[0].msg
+    }})
+    await request.sendMessage(chatId, `您好 *${req.body.message.from.first_name} ${req.body.message.from.last_name}*, 指定對話刪除完成`)
+
+    delete req.session.state
+  }
+}
+
+const ifCallbackQuery = async (req) => {
+  const chatId = req.body.callback_query.message.chat.id
+  const messageId = req.body.callback_query.message.message_id
+
+  if (!req.session.state) return
+
+  if (req.session.state.type == 2 && req.body.callback_query.data == 'yes') {
+    await Conversation.destroy({ where: { chatId }})
+    await request.editMessageReplyMarkup(chatId, messageId)
+    await request.sendMessage(chatId,
+      `您好 *${req.body.callback_query.from.first_name} ${req.body.callback_query.from.last_name}*, 刪光光囉`)
+
+    delete req.session.state
+  } if (req.session.state.type == 2 && req.body.callback_query.data == 'no') {
+    await request.editMessageReplyMarkup(chatId, messageId)
+    await request.sendMessage(chatId, `您好 *${req.body.callback_query.from.first_name} ${req.body.callback_query.from.last_name}*, 您已取消此次對話`)
 
     delete req.session.state
   }
@@ -116,7 +174,9 @@ const sendByAType = async (chatId, data) => {
 module.exports = {
   webhook: async (req, res) => {
     try {
-      if (req.body.message.text && req.body.message.entities) {
+      if (req.body.callback_query) {
+        await ifCallbackQuery(req)
+      } else if (req.body.message.text && req.body.message.entities) {
         await ifCommand(req)
       } else if (req.session.state) {
         await ifSessionState(req)

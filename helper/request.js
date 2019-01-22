@@ -3,10 +3,22 @@ const rp = require('request-promise')
 const url = `https://api.telegram.org/bot${process.env.TG_TOKEN}`
 
 module.exports = {
-  sendMessage: async function(chatId, text, parse_mode = 'Markdown') {
+  sendMessage: async function(chatId, text, reply_markup, parse_mode = 'Markdown') {
     try {
       const uri = `${url}/sendMessage`
-      const body = { chat_id: chatId, text, parse_mode }
+      const body = { chat_id: chatId, text, parse_mode, reply_markup }
+      await rp({ method: 'POST', uri, body, json: true })
+
+      return true
+    } catch (error) {
+      console.error(error)
+      return false
+    }
+  },
+  editMessageReplyMarkup: async function(chatId, messageId) {
+    try {
+      const uri = `${url}/editMessageReplyMarkup`
+      const body = { chat_id: chatId, message_id: messageId }
       await rp({ method: 'POST', uri, body, json: true })
 
       return true

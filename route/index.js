@@ -14,12 +14,19 @@ function sessionMiddleWare(req, res, next) {
   console.log(JSON.stringify(req.body))
   if (req.body.edited_message) return res.send()
 
-  const chatId = req.body.message.chat.id
-  const userId = req.body.message.from.id
-  if (!MemorySession[chatId]) MemorySession[chatId] = {}
-  if (!MemorySession[chatId][userId]) MemorySession[chatId][userId] = { user: req.body.message.from }
+  let chatId, user
+  if (req.body.callback_query) {
+    chatId = req.body.callback_query.message.chat.id
+    user = req.body.callback_query.from
+  } else {
+    chatId = req.body.message.chat.id
+    user = req.body.message.from
+  }
 
-  req.session = MemorySession[chatId][userId]
+  if (!MemorySession[chatId]) MemorySession[chatId] = {}
+  if (!MemorySession[chatId][user.id]) MemorySession[chatId][user.id] = { user }
+
+  req.session = MemorySession[chatId][user.id]
   next()
 }
 
